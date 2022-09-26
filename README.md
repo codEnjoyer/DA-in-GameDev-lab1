@@ -27,10 +27,13 @@
 
 ## Задание 1
 ### Написать программы Hello, World! на Python и Unity
-Скриншоты расположены в папке Screenshots.
+![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/SayHelloProgram.png?raw=true)
+![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/SayHelloOnGDrive.png?raw=true)
+![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/HelloWorldInUnity.png?raw=true)
+
 
 ## Задание 2
-Подготовил данные, перенёс функции модели, потерь и оптимизации. Далее построил график по заданным значениям, все скриншоты также в папке Screenshots, используемый код: 
+Подготовил данные, перенёс функции модели, потерь и оптимизации. Далее построил график по заданным значениям, используемый код: 
 
 ```py
 
@@ -85,13 +88,18 @@ plt.show()
 
 ```
 
-
 ## Задание 3
 ### - Должна ли величина loss стремиться к нулю при изменении исходных данных? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ.
 ### - Какова роль параметра Lr? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ. В качестве эксперимента можете изменить значение параметра.
 Величина loss должна стремиться к нулю при увеличении числа итераций.
+
+![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/Linear_regression_5_iterations.png?raw=true)
+![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/Linear_regression_500_iterations.png?raw=true)
+![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/Linear_regression_10000_iterations.png?raw=true)
+
 Параметр Lr отражает точность линейной регрессии(Lr - Linear regression). Так, при его уменьшении в 10 раз величина loss увеличивается в несколько раз.
-(Все скриншоты с 5, 500 и 10000 итераций, а также уменьшением значения Lr в папке Screenshots).
+
+![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/Linear_regression_low_Lr.png?raw=true)
 
 ## Выводы
 Получен опыт работы с библиотекой matplotlib, изучен алгоритм реализации линейной регрессии. В процессе написания кода также было выучено несколько полезных комбинаций клавиш для работы в PyCharm.

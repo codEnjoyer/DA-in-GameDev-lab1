@@ -31,9 +31,6 @@
 Python код для записи данных из скрипта в Google Sheets:
 
 ```py
-
-In [ ]:
-
 import gspread
 import numpy as np
 
@@ -53,8 +50,6 @@ for i in range(1, 12):
 Создал Unity проект и написал скрипт для получения данных из Google Sheets:
 
 ```C#
-
-In [ ]:
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -96,8 +91,6 @@ public class NewBehaviourScript : MonoBehaviour
 Добавил функционал для воспроизведения аудио в зависимости от полученных данных:
 
 ```C#
-
-In [ ]:
     void Update()
     {
         if (dataSet["Mon_" + i.ToString()] <= 10 & statusStart == false & i != dataSet.Count)
@@ -120,7 +113,7 @@ In [ ]:
         }
     }
     
-        IEnumerator PlaySelectAudioGood()
+    IEnumerator PlaySelectAudioGood()
     {
         statusStart = true;
         selectAudio = GetComponent<AudioSource>();
@@ -159,9 +152,6 @@ In [ ]:
 Создал второй лист, изменил код из задания #1 для корректной записи данных в Google Sheets
 
 ```py
-
-In [ ]:
-
 import numpy as np
 import gspread
 
@@ -237,8 +227,6 @@ for i in range(2, 9):
 
 Изменил код скрипта так, чтобы он подтягивал данные со второго листа, изменил значения при которых будут воспроизводиться конкретные аудиодорожки:
 ```C#
-
-In [ ]:
     void Update()
     {
         if (statusStart || i == dataSet.Count + 1) return;

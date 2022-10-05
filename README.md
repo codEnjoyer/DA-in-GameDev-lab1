@@ -76,7 +76,7 @@ public class NewBehaviourScript : MonoBehaviour
         StartCoroutine(GoogleSheets());
     }
     
-        IEnumerator GoogleSheets()
+    IEnumerator GoogleSheets()
     {
         UnityWebRequest curentResp =
             UnityWebRequest.Get(
@@ -233,20 +233,54 @@ for i in range(2, 9):
 
 
 ## Задание 3
-### - Должна ли величина loss стремиться к нулю при изменении исходных данных? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ.
-### - Какова роль параметра Lr? Ответьте на вопрос, приведите пример выполнения кода, который подтверждает ваш ответ. В качестве эксперимента можете изменить значение параметра.
-Величина loss должна стремиться к нулю при увеличении числа итераций.
+### - Самостоятельно разработать сценарий воспроизведения звукового сопровождения в Unity в зависимости от изменения считанных данных в задании 2
 
-![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/Linear_regression_5_iterations.png?raw=true)
-![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/Linear_regression_500_iterations.png?raw=true)
-![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/Linear_regression_10000_iterations.png?raw=true)
+Изменил код скрипта так, чтобы он подтягивал данные со второго листа, изменил значения при которых будут воспроизводиться конкретные аудиодорожки:
+```C#
 
-Параметр Lr отражает точность линейной регрессии(Lr - Linear regression). Так, при его уменьшении в 10 раз величина loss увеличивается в несколько раз.
+In [ ]:
+    void Update()
+    {
+        if (statusStart || i == dataSet.Count + 1) return;
+        if (dataSet["Mon_" + i] >= 1000)
+        {
+            StartCoroutine(PlaySelectAudioBad());
+            Debug.Log(dataSet["Mon_" + i]);
+        }
+        if (dataSet["Mon_" + i] >= 190 && dataSet["Mon_" + i] < 1000)
+        {
+            StartCoroutine(PlaySelectAudioNormal());
+            Debug.Log(dataSet["Mon_" + i]);
+        }
 
-![alt text](https://github.com/codEnjoyer/DA-in-GameDev-lab1/blob/main/Screenshots/Linear_regression_low_Lr.png?raw=true)
+        if (!(dataSet["Mon_" + i] <= 190)) return;
+        
+        StartCoroutine(PlaySelectAudioGood());
+        Debug.Log(dataSet["Mon_" + i]);
+    }
+    
+    IEnumerator GoogleSheets()
+    {
+        var currentResp =
+            UnityWebRequest.Get(
+                "https://sheets.googleapis.com/v4/spreadsheets/1rwDRyBppb0PxRqmkm4YcOo6ly1daXr3dHR3ULpX8HMg/values/Sheet2?key=*API-Ключ*");
+        yield return currentResp.SendWebRequest();
+        var rawResp = currentResp.downloadHandler.text;
+        var rawJson = JSON.Parse(rawResp);
+        foreach (var itemRawJson in rawJson["values"])
+        {
+            var parseJson = JSON.Parse(itemRawJson.ToString());
+            var selectRow = parseJson[0].AsStringList;
+            dataSet.Add(("Mon_" + selectRow[0]), float.Parse(selectRow[4]));
+        }
+    }
+```
+Вывод в консоль:
+
+![image](https://user-images.githubusercontent.com/87475288/194089444-8bbfba4b-1306-4678-be38-6db36ae5bebe.png)
 
 ## Выводы
-Получен опыт работы с библиотекой matplotlib, изучен алгоритм реализации линейной регрессии. В процессе написания кода также было выучено несколько полезных комбинаций клавиш для работы в PyCharm.
+Получил навык работы с Google Sheets как с интсрументом для анализа данных, научился заносить и парсить данные с помощью Google Sheets. К тому же меня 5 раз назвали тираном, но только 1 раз доверились мне и 1 раз восхитились.
 
 ## Powered by
 

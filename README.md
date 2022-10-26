@@ -1,5 +1,5 @@
 # АНАЛИЗ ДАННЫХ И ИСКУССТВЕННЫЙ ИНТЕЛЛЕКТ [in GameDev]
-Отчет по лабораторной работе #2 выполнил(а):
+Отчет по лабораторной работе #3 выполнил(а):
 - Чашкин Никита Андреевич
 - РИ210941
 
@@ -9,7 +9,7 @@
 | ------ | ------ | ------ |
 | Задание 1 | * | 60 |
 | Задание 2 | * | 20 |
-| Задание 3 | * | 20 |
+| Задание 3 | # | 20 |
 
 знак "*" - задание выполнено; знак "#" - задание не выполнено;
 
@@ -19,256 +19,152 @@
 - ст. преп., Фадеев В.О.
 
 ## Цель работы
-Познакомиться с программными средствами для организции передачи данных между инструментами google, Python и Unity
-
+Познакомиться с программными средствами для создания системы машинного обучения и ее интеграции в Unity.
 ## Задание 1
-### Реализовать совместную работу и передачу данных в связке Python - Google-Sheets – Unity.
+### Реализовать систему машинного обучения в связке Python -Google-Sheets – Unity.
 
-Подключил API для работы с Google Sheets:
+Создал пустой 3D проект:
 
-![image](https://user-images.githubusercontent.com/87475288/194066762-45a42abe-1534-4dd1-a63a-d9d8f1b14d71.png)
+![Empty_project](https://user-images.githubusercontent.com/87475288/198113172-dd6fcf44-71bb-4de0-bc2a-4ee0ce127cc7.png)
 
-Python код для записи данных из скрипта в Google Sheets:
+И добавил необходимые пакеты:
 
-```py
-import gspread
-import numpy as np
+![Packages](https://user-images.githubusercontent.com/87475288/198113512-0f468974-1d7e-4f0c-b384-ddec53c53527.png)
 
-gc = gspread.service_account(filename='unitydatascience-364516-d5142e967d57.json')
-sh = gc.open("UnitySheets")
-price = np.random.randint(2000, 10000, 11)
-for i in range(1, 12):
-    tempInf = str(((price[i - 1] - price[i - 2]) / price[i - 2]) * 100)
-    tempInf = tempInf.replace('.', ',')
-    sh.sheet1.update(f'A{i}', str(i))
-    sh.sheet1.update(f'B{i}', str(price[i - 1]))
-    sh.sheet1.update(f'C{i}', str(tempInf))
-    print(f'{i}\t{tempInf}')
+При помощи Anaconda установил mlagents 0.28.0 и torch 1.8.2(последняя релизная версия, команду для скачивания получил на оф. сайте, совместима с остальными пакетами):
 
-```
+![Conda_packages](https://user-images.githubusercontent.com/87475288/198113886-9f7a8a21-e665-49d6-bea9-4d8384e13540.png)
 
-Создал Unity проект и написал скрипт для получения данных из Google Sheets:
+Добавил необходимые объекты на сцену и накинул скрипт на шар, будущий RollerAgent:
+
+![first_step](https://user-images.githubusercontent.com/87475288/198114033-40c5c6f5-48ed-4b8d-80de-27c1b216dc02.png)
+
+Добавил в этот скрипт следующий код(отрефакторенная версия кода из материалов):
 
 ```C#
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.Networking;
-using SimpleJSON;
+using Unity.MLAgents;
+using Unity.MLAgents.Sensors;
+using Unity.MLAgents.Actuators;
 
-public class NewBehaviourScript : MonoBehaviour
+public class RollerAgent : Agent
 {
-    public AudioClip goodSpeak;
-    public AudioClip normalSpeak;
-    public AudioClip badSpeak;
-    private AudioSource selectAudio;
-    private Dictionary<string, float> dataSet = new();
-    private bool statusStart = false;
-    private int i = 1;
+    private Rigidbody _rBody;
+    [SerializeField] private Transform _target;
+    private const float ForceMultiplier = 10;
 
-    void Start()
+    public void Start()
     {
-        StartCoroutine(GoogleSheets());
-    }
-    
-    IEnumerator GoogleSheets()
-    {
-        UnityWebRequest curentResp =
-            UnityWebRequest.Get(
-                "https://sheets.googleapis.com/v4/spreadsheets/1rwDRyBppb0PxRqmkm4YcOo6ly1daXr3dHR3ULpX8HMg/values/Sheet1?key=*API-Ключ*");
-        yield return curentResp.SendWebRequest();
-        string rawResp = curentResp.downloadHandler.text;
-        var rawJson = JSON.Parse(rawResp);
-        foreach (var itemRawJson in rawJson["values"])
-        {
-            var parseJson = JSON.Parse(itemRawJson.ToString());
-            var selectRow = parseJson[0].AsStringList;
-            dataSet.Add(("Mon_" + selectRow[0]), float.Parse(selectRow[2]));
-        }
-    }
-```
-
-Добавил функционал для воспроизведения аудио в зависимости от полученных данных:
-
-```C#
-    void Update()
-    {
-        if (dataSet["Mon_" + i.ToString()] <= 10 & statusStart == false & i != dataSet.Count)
-        {
-            StartCoroutine(PlaySelectAudioGood());
-            Debug.Log(dataSet["Mon_" + i.ToString()]);
-        }
-
-        if (dataSet["Mon_" + i.ToString()] > 10 & dataSet["Mon_" + i.ToString()] < 100 & statusStart == false &
-            i != dataSet.Count)
-        {
-            StartCoroutine(PlaySelectAudioNormal());
-            Debug.Log(dataSet["Mon_" + i.ToString()]);
-        }
-
-        if (dataSet["Mon_" + i.ToString()] >= 100 & statusStart == false & i != dataSet.Count)
-        {
-            StartCoroutine(PlaySelectAudioBad());
-            Debug.Log(dataSet["Mon_" + i.ToString()]);
-        }
-    }
-    
-    IEnumerator PlaySelectAudioGood()
-    {
-        statusStart = true;
-        selectAudio = GetComponent<AudioSource>();
-        selectAudio.clip = goodSpeak;
-        selectAudio.Play();
-        yield return new WaitForSeconds(3);
-        statusStart = false;
-        i++;
+        _rBody = GetComponent<Rigidbody>();
     }
 
-    IEnumerator PlaySelectAudioNormal()
+    public override void OnEpisodeBegin()
     {
-        statusStart = true;
-        selectAudio = GetComponent<AudioSource>();
-        selectAudio.clip = normalSpeak;
-        selectAudio.Play();
-        yield return new WaitForSeconds(3);
-        statusStart = false;
-        i++;
-    }
-
-    IEnumerator PlaySelectAudioBad()
-    {
-        statusStart = true;
-        selectAudio = GetComponent<AudioSource>();
-        selectAudio.clip = badSpeak;
-        selectAudio.Play();
-        yield return new WaitForSeconds(4);
-        statusStart = false;
-        i++;
-    }
-```
-
-## Задание 2: Реализовать запись в Google-таблицу набора данных, полученных с помощью линейной регрессии из лабораторной работы № 1
-
-Создал второй лист, изменил код из задания #1 для корректной записи данных в Google Sheets
-
-```py
-import numpy as np
-import gspread
-
-
-def model(a, b, x):
-    return a * x + b
-
-
-def loss_function(a, b, x, y):
-    num = len(x)
-    prediction = model(a, b, x)
-    return (0.5 / num) * (np.square(prediction - y)).sum()
-
-
-def optimize(a, b, x, y):
-    num = len(x)
-    prediction = model(a, b, x)
-    da = (1.0 / num) * ((prediction - y) * x).sum()
-    db = (1.0 / num) * (prediction - y).sum()
-    a = a - Lr * da
-    b = b - Lr * db
-    return a, b
-
-
-def iterate(a, b, x, y, times):
-    for i in range(times):
-        a, b = optimize(a, b, x, y)
-    return a, b
-
-
-gc = gspread.service_account(filename='unitydatascience-364516-d5142e967d57.json')
-sh = gc.open("UnitySheets")
-x = [3, 21, 22, 34, 54, 34, 55, 67, 89, 99]
-y = [2, 22, 24, 65, 79, 82, 55, 130, 150, 199]
-x, y = np.array(x), np.array(y)
-n_iterations = 1
-initialized = False
-worksheet = sh.get_worksheet(1)
-
-
-for i in range(2, 9):
-    if not initialized:
-        worksheet.update('A1', "Значение a")
-        worksheet.update('B1', "Значение b")
-        worksheet.update('C1', "Количество итераций")
-        worksheet.update('D1', "Потеря (loss)")
-        initialized = True
-
-    a, b = np.random.rand(1), np.random.rand(1)
-    Lr = 0.000_000_01
-
-    a, b = iterate(a, b, x, y, n_iterations)
-    prediction = model(a, b, x)
-    loss = loss_function(a, b, x, y)
-
-    a_value = a[0]
-    b_value = b[0]
-    worksheet.update(f'A{i}', a_value)
-    worksheet.update(f'B{i}', b_value)
-    worksheet.update(f'C{i}', n_iterations)
-    worksheet.update(f'D{i}', loss)
-    print(f"a: {a_value}, b: {b_value}, iterations: {n_iterations}, loss: {loss}")
-    n_iterations *= 10
-
-```
-Результат выполнения скрипта:
-
-![image](https://user-images.githubusercontent.com/87475288/194067976-abddbf3d-3f56-4513-8264-b8c2aad7edef.png)
-
-
-## Задание 3
-### - Самостоятельно разработать сценарий воспроизведения звукового сопровождения в Unity в зависимости от изменения считанных данных в задании 2
-
-Изменил код скрипта так, чтобы он подтягивал данные со второго листа, изменил значения при которых будут воспроизводиться конкретные аудиодорожки:
-```C#
-    void Update()
-    {
-        if (statusStart || i == dataSet.Count + 1) return;
-        if (dataSet["Mon_" + i] >= 1000)
+        if (transform.localPosition.y < 0)
         {
-            StartCoroutine(PlaySelectAudioBad());
-            Debug.Log(dataSet["Mon_" + i]);
-        }
-        if (dataSet["Mon_" + i] >= 190 && dataSet["Mon_" + i] < 1000)
-        {
-            StartCoroutine(PlaySelectAudioNormal());
-            Debug.Log(dataSet["Mon_" + i]);
+            _rBody.angularVelocity = Vector3.zero;
+            _rBody.velocity = Vector3.zero;
+            transform.localPosition = new Vector3(Random.Range(-4f, 4f), 0.5f, Random.Range(-4f, 4f));
         }
 
-        if (!(dataSet["Mon_" + i] <= 190)) return;
+        _target.localPosition = new Vector3(Random.Range(-4f, 4f), 0.5f, Random.Range(-4f, 4f));
+    }
+
+    public override void CollectObservations(VectorSensor sensor)
+    {
+        sensor.AddObservation(_target.localPosition);
+        sensor.AddObservation(transform.localPosition);
+        sensor.AddObservation(_rBody.velocity.x);
+        sensor.AddObservation(_rBody.velocity.z);
+    }
+
+    public override void OnActionReceived(ActionBuffers actionBuffers)
+    {
+        var controlSignal = Vector3.zero;
+        controlSignal.x = actionBuffers.ContinuousActions[0];
+        controlSignal.z = actionBuffers.ContinuousActions[1];
+        _rBody.AddForce(controlSignal * ForceMultiplier);
+
+        if (transform.localPosition.y < 0)
+        {
+            EndEpisode();
+        }
+    }
+
+    public override void Heuristic(in ActionBuffers actionsOut)
+    {
+        var continuousActions = actionsOut.ContinuousActions;
+        continuousActions[0] = Input.GetAxisRaw("Horizontal");
+        continuousActions[1] = Input.GetAxisRaw("Vertical");
         
-        StartCoroutine(PlaySelectAudioGood());
-        Debug.Log(dataSet["Mon_" + i]);
     }
     
-    IEnumerator GoogleSheets()
+    private void OnTriggerEnter(Component other)
     {
-        var currentResp =
-            UnityWebRequest.Get(
-                "https://sheets.googleapis.com/v4/spreadsheets/1rwDRyBppb0PxRqmkm4YcOo6ly1daXr3dHR3ULpX8HMg/values/Sheet2?key=*API-Ключ*");
-        yield return currentResp.SendWebRequest();
-        var rawResp = currentResp.downloadHandler.text;
-        var rawJson = JSON.Parse(rawResp);
-        foreach (var itemRawJson in rawJson["values"])
-        {
-            var parseJson = JSON.Parse(itemRawJson.ToString());
-            var selectRow = parseJson[0].AsStringList;
-            dataSet.Add(("Mon_" + selectRow[0]), float.Parse(selectRow[4]));
-        }
+        if (!other.TryGetComponent<Goal>(out var goal)) return;
+        SetReward(1.0f);
+        EndEpisode();
     }
-```
-Вывод в консоль:
+}
 
-![image](https://user-images.githubusercontent.com/87475288/194089444-8bbfba4b-1306-4678-be38-6db36ae5bebe.png)
+```
+
+Добавил компоненты шару для того, чтобы он стал агентом (прям Джеймс Бонд какой-то), и настроил соответствующим образом:
+
+![second_step](https://user-images.githubusercontent.com/87475288/198114600-031e76f6-d167-4bd8-8daf-ef1963aac017.png)
+
+Вставил в корень проекта конфиг нейронной сети из материалов и запустил обучение:
+
+![third_step](https://user-images.githubusercontent.com/87475288/198114982-349849ca-4302-4412-b643-bccab62462de.png)
+
+Далее поступил аналогичным образом для 3, 9 и 27 копий модели:
+
+![3_areas](https://user-images.githubusercontent.com/87475288/198115143-06e21081-31a1-445d-b841-4c6170f787ca.png)
+
+![9_areas](https://user-images.githubusercontent.com/87475288/198115163-2a15230c-3d08-4784-a56d-4cafbad70a3e.png)
+
+![27_areas](https://user-images.githubusercontent.com/87475288/198115172-d105d8c6-4180-4885-b53c-1bef63ac8722.png)
+
+По итогам обучения шар стал двигаться намного менее хаотично, реже падать за границу плоскости и практически всегда достигать цели в виде куба.
+
+![start_work](https://user-images.githubusercontent.com/87475288/198115543-4c0e5367-b961-41f3-b40b-cbd035e42fae.png)
+
+![end_work](https://user-images.githubusercontent.com/87475288/198115555-559116ea-aab9-45cb-9d98-310f99abefb1.png)
+
+
+## Задание 2: Подробно опишите каждую строку файла конфигурации нейронной сети. Самостоятельно найдите информацию о компонентах Decision Requester, Behavior Parameters
+
+```
+behaviors:
+  RollerBall:                        #Имя агента
+    trainer_type: ppo                #Устанавливаем режим обучения.
+    hyperparameters:                 
+      batch_size: 10                 #Количество опытов на каждой итерации.
+      buffer_size: 100               #Количество опыта, которое нужно набрать для обновления
+      learning_rate: 3.0e-4          #Шаг обучения.
+      beta: 5.0e-4                   #Случайность действия; повышает разнообразие и иследованность пространства обучения.
+      epsilon: 0.2                   #Порог расхождений между старой и новой политиками при обновлении.
+      lambd: 0.99                    #Авторитетность оценок значений во времени. Чем выше значение, тем более авторитетен набор предыдущих оценок.
+      num_epoch: 3                   #Количество проходов через буфер опыта при выполнении оптимизации.
+      learning_rate_schedule: linear #Темп скорости обучения со временем.
+    network_settings:                
+      normalize: false               #Нормализация входных данных.
+      hidden_units: 128              #Количество нейронов в скрытых слоях сети.
+      num_layers: 2                  #Количество скрытых слоев для размещения нейронов.
+    reward_signals:                  #Задает сигналы о вознаграждении.
+      extrinsic:
+        gamma: 0.99                  #Коэффициент скидки для будущих вознаграждений.
+        strength: 1.0                #Шаг для learning_rate.
+    max_steps: 500000                #Количество шагов, которые должны быть выполнены в среде для завершения обучения.
+    time_horizon: 64                 #Количество циклов ML-агента, хранящихся в буфере до ввода в модель.
+    summary_freq: 10000              #Количество необходимого опыта перед созданием и отображением статистики.
+```
+
 
 ## Выводы
-Получил навык работы с Google Sheets как с интсрументом для анализа данных, научился заносить и парсить данные с помощью Google Sheets. К тому же меня 5 раз назвали тираном, но только 1 раз доверились мне и 1 раз восхитились.
+Игровой баланс в играх - это субъективное «равновесие» между персонажами, командами, тактиками игры и другими игровыми объектами. Игровой баланс является одним из требований к «честности» правил.
+
+Относительно простой нейронной сети достаточно, чтобы достичь высокой эффективности игры против игроков и традиционного игрового ИИ. Таких агентов можно использовать различными способами, например, для тренировки новых игроков или для выявления неожиданных стратегий. Так же системы машинного обучения могут использоваться для того, чтобы выявить дисбаланс в игре.
 
 ## Powered by
 

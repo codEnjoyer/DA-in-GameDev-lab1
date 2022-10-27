@@ -9,7 +9,7 @@
 | ------ | ------ | ------ |
 | Задание 1 | * | 60 |
 | Задание 2 | * | 20 |
-| Задание 3 | # | 20 |
+| Задание 3 | * | 20 |
 
 знак "*" - задание выполнено; знак "#" - задание не выполнено;
 
@@ -31,7 +31,7 @@
 
 ![Packages](https://user-images.githubusercontent.com/87475288/198113512-0f468974-1d7e-4f0c-b384-ddec53c53527.png)
 
-При помощи Anaconda установил mlagents 0.28.0 и torch 1.8.2(последняя релизная версия, команду для скачивания получил на оф. сайте, совместима с остальными пакетами):
+При помощи Anaconda установил mlagents 0.28.0 и torch 1.8.2 (последняя релизная версия, команду для скачивания получил на оф. сайте, совместима с остальными пакетами):
 
 ![Conda_packages](https://user-images.githubusercontent.com/87475288/198113886-9f7a8a21-e665-49d6-bea9-4d8384e13540.png)
 
@@ -39,7 +39,7 @@
 
 ![first_step](https://user-images.githubusercontent.com/87475288/198114033-40c5c6f5-48ed-4b8d-80de-27c1b216dc02.png)
 
-Добавил в этот скрипт следующий код(отрефакторенная версия кода из материалов):
+Добавил в этот скрипт следующий код (отрефакторенная версия кода из материалов):
 
 ```C#
 using UnityEngine;
@@ -159,6 +159,118 @@ behaviors:
     time_horizon: 64                 #Количество циклов ML-агента, хранящихся в буфере до ввода в модель.
     summary_freq: 10000              #Количество необходимого опыта перед созданием и отображением статистики.
 ```
+
+## Задание 3: Доработайте сцену и обучите ML-Agent таким образом, чтобы шар перемещался между двумя кубами разного цвета. Кубы должны, как и в первом задании, случайно изменять координаты на плоскости.
+
+Задание я прочитал после того, как сделал его, так что кубы одного цвета :)
+
+Сначала дописал логику награждения за достижение кубов (чем дальше он продвигается, тем большая награда даётся, а за полное выполнение задания я давал удвоенную награду). К тому же добавил поле, которое отвечает за то, сколько раз шар должен задеть кубы. Код выглядит следующим образом:
+
+```C#
+using UnityEngine;
+using Unity.MLAgents;
+using Unity.MLAgents.Sensors;
+using Unity.MLAgents.Actuators;
+
+public class RollerAgent : Agent
+{
+    [SerializeField] private Transform _target;
+    [SerializeField] private Transform _secondTarget;
+    [SerializeField] private float _forceMultiplier = 10;
+    [SerializeField] private int _targetTouches;
+    private Rigidbody _rBody;
+    private bool _firstTargetAchieved;
+    private int _targetTouchCount;
+    
+    public void Start()
+    {
+        _rBody = GetComponent<Rigidbody>();
+    }
+
+    public override void OnEpisodeBegin()
+    {
+        if (transform.localPosition.y < 0)
+        {
+            _targetTouchCount = 0;
+            _firstTargetAchieved = false;
+            _rBody.angularVelocity = Vector3.zero;
+            _rBody.velocity = Vector3.zero;
+            transform.localPosition = new Vector3(Random.Range(-4f, 4f), 0.5f, Random.Range(-4f, 4f));
+        }
+
+        _target.localPosition = new Vector3(Random.Range(-4f, 4f), 0.5f, Random.Range(-4f, 4f));
+        _secondTarget.localPosition = new Vector3(Random.Range(-4f, 4f), 0.5f, Random.Range(-4f, 4f));
+    }
+
+    public override void CollectObservations(VectorSensor sensor)
+    {
+        sensor.AddObservation(_target.localPosition);
+        sensor.AddObservation(_secondTarget.localPosition);
+        sensor.AddObservation(transform.localPosition);
+        sensor.AddObservation(_rBody.velocity.x);
+        sensor.AddObservation(_rBody.velocity.z);
+    }
+
+    public override void OnActionReceived(ActionBuffers actionBuffers)
+    {
+        var controlSignal = Vector3.zero;
+        controlSignal.x = actionBuffers.ContinuousActions[0];
+        controlSignal.z = actionBuffers.ContinuousActions[1];
+        _rBody.AddForce(controlSignal * _forceMultiplier);
+
+        if (transform.localPosition.y < 0)
+        {
+            EndEpisode();
+        }
+    }
+
+    public override void Heuristic(in ActionBuffers actionsOut)
+    {
+        var continuousActions = actionsOut.ContinuousActions;
+        continuousActions[0] = Input.GetAxisRaw("Horizontal");
+        continuousActions[1] = Input.GetAxisRaw("Vertical");
+        
+    }
+    
+    private void OnTriggerEnter(Component other)
+    {
+        if (_targetTouches == _targetTouchCount)
+        {
+            AddReward(_targetTouchCount * 2);
+            _targetTouchCount = 0;
+            _firstTargetAchieved = false;
+            EndEpisode();
+        }
+        if (other.TryGetComponent<FirstGoal>(out var g) && !_firstTargetAchieved)
+        {
+            _targetTouchCount++;
+            _firstTargetAchieved = true;
+            AddReward(_targetTouchCount);
+        }
+        if (other.TryGetComponent<SecondGoal>(out var goal) && _firstTargetAchieved)
+        {
+            _targetTouchCount++;
+            _firstTargetAchieved = false;
+            AddReward(_targetTouchCount);
+        }
+    }
+}
+```
+Добавил побольше зон для обучения и запустил ml-агента:
+
+![Learning_between_cubes](https://user-images.githubusercontent.com/87475288/198261073-20cf6a49-bc40-4cad-9c3e-220833749f96.png)
+
+Результат обучения: шар катается по кругу на платформе, попутно стараясь зацепить кубы:
+
+![Start_between_cubes](https://user-images.githubusercontent.com/87475288/198261239-1040256d-9140-4f6c-bd0f-bd53eb5d26b9.png)
+
+![Goes_between_cubes](https://user-images.githubusercontent.com/87475288/198261252-286c8e24-8bad-46df-9fad-900d8f1ce3f8.png)
+
+![Finish_between_cubes](https://user-images.githubusercontent.com/87475288/198261268-527327fc-a509-450b-ab6b-fe22d845da0a.png)
+
+Ну а после того, как заденет кубы установленное перед запуском количество раз, зона обновляется, и всё начинается заново:
+
+![Next_between_cubes](https://user-images.githubusercontent.com/87475288/198261411-3f6f7ae0-d6f1-4e2e-8668-38f1e997beec.png)
 
 
 ## Выводы

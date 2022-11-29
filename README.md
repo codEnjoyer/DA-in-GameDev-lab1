@@ -1,5 +1,5 @@
 # АНАЛИЗ ДАННЫХ И ИСКУССТВЕННЫЙ ИНТЕЛЛЕКТ [in GameDev]
-Отчет по лабораторной работе #2 выполнил(а):
+Отчет по лабораторной работе #4 выполнил(а):
 - Чашкин Никита Андреевич
 - РИ210941
 
@@ -19,256 +19,185 @@
 - ст. преп., Фадеев В.О.
 
 ## Цель работы
-Познакомиться с программными средствами для организции передачи данных между инструментами google, Python и Unity
+Ознакомиться с принципами работы перцептрона.
 
 ## Задание 1
-### Реализовать совместную работу и передачу данных в связке Python - Google-Sheets – Unity.
+### В проекте Unity реализовать перцептрон
 
-Подключил API для работы с Google Sheets:
-
-![image](https://user-images.githubusercontent.com/87475288/194066762-45a42abe-1534-4dd1-a63a-d9d8f1b14d71.png)
-
-Python код для записи данных из скрипта в Google Sheets:
-
-```py
-import gspread
-import numpy as np
-
-gc = gspread.service_account(filename='unitydatascience-364516-d5142e967d57.json')
-sh = gc.open("UnitySheets")
-price = np.random.randint(2000, 10000, 11)
-for i in range(1, 12):
-    tempInf = str(((price[i - 1] - price[i - 2]) / price[i - 2]) * 100)
-    tempInf = tempInf.replace('.', ',')
-    sh.sheet1.update(f'A{i}', str(i))
-    sh.sheet1.update(f'B{i}', str(price[i - 1]))
-    sh.sheet1.update(f'C{i}', str(tempInf))
-    print(f'{i}\t{tempInf}')
-
-```
-
-Создал Unity проект и написал скрипт для получения данных из Google Sheets:
+Перенёс предоставленный код перцептрона в Unity
 
 ```C#
+using System;
 using System.Collections;
-using System.Collections.Generic;
+using System.Linq;
+using TMPro;
 using UnityEngine;
-using UnityEngine.Networking;
-using SimpleJSON;
+using Random = UnityEngine.Random;
 
-public class NewBehaviourScript : MonoBehaviour
+[Serializable]
+public class TrainingSet
 {
-    public AudioClip goodSpeak;
-    public AudioClip normalSpeak;
-    public AudioClip badSpeak;
-    private AudioSource selectAudio;
-    private Dictionary<string, float> dataSet = new();
-    private bool statusStart = false;
-    private int i = 1;
+    public double[] input;
+    public double output;
+}
+
+public class Perceptron : MonoBehaviour
+{
+    // public TextMeshProUGUI text;
+    public TrainingSet[] ts;
+    private readonly double[] weights = { 0, 0 };
+    private double bias;
+    private double totalError;
+
+    private double DotProductBias(double[] v1, double[] v2)
+    {
+        if (v1 == null || v2 == null)
+            return -1;
+
+        if (v1.Length != v2.Length)
+            return -1;
+
+        var d = v1.Select((t, x) => t * v2[x]).Sum();
+
+        d += bias;
+
+        return d;
+    }
+
+    public int CalcOutput(int i1, int i2)
+    {
+        double[] inp = { i1, i2 };
+        var dp = DotProductBias(weights, inp);
+        return dp > 0 ? 1 : 0;
+    }
+
+    private int CalcOutput(int i)
+    {
+        var dp = DotProductBias(weights, ts[i].input);
+        return dp > 0 ? 1 : 0;
+    }
+
+    private void InitialiseWeights()
+    {
+        for (var i = 0; i < weights.Length; i++)
+            weights[i] = Random.Range(-1.0f, 1.0f);
+        
+        bias = Random.Range(-1.0f, 1.0f);
+    }
+
+
+    private void UpdateWeights(int j)
+    {
+        var error = ts[j].output - CalcOutput(j);
+        totalError += Mathf.Abs((float)error);
+        
+        for (var i = 0; i < weights.Length; i++)
+            weights[i] += error * ts[j].input[i];
+        
+        bias += error;
+    }
+
+    private void Train(int epochs)
+    {
+        InitialiseWeights();
+
+        for (var e = 0; e < epochs; e++)
+        {
+            totalError = 0;
+            for (var t = 0; t < ts.Length; t++)
+                UpdateWeights(t);
+            /*
+                Debug.Log("W1: " + (weights[0]) + " W2: " + (weights[1]) + " B: " + bias);
+            */
+            Debug.Log($"Total error: {totalError}, epoch {e}.");
+        }
+    }
+
+    private void Awake()
+    {
+        Train(8);
+    }
+```
+
+Реализовал логические операции:
+OR - 
+
+![image](https://user-images.githubusercontent.com/87475288/204602696-e4a77135-109e-4e7f-8635-e46002d5431c.png)
+
+AND - 
+
+![image](https://user-images.githubusercontent.com/87475288/204602785-dcf410b4-3dfb-40c8-8c50-91ca4d80a6c6.png)
+
+NAND - 
+
+![image](https://user-images.githubusercontent.com/87475288/204602835-6b4d6bcf-6fef-4258-89ba-c056bb25b10b.png)
+
+XOR - 
+
+![image](https://user-images.githubusercontent.com/87475288/204602891-327ce755-ef0a-4a01-a7e0-4b763bb62869.png)
+
+Как видите, перцептрон не осилил XOR. Наглядная причина этому:
+
+![image](https://user-images.githubusercontent.com/87475288/204603203-2f2db54a-d894-4704-a30f-bd97edb1598f.png)
+
+## Задание 2: Построить графики зависимости количества эпох от ошибки.
+
+Перенёс данные со скриншотов в Google Sheets в формате - "номер эпохи : total error".
+Вот результаты:
+
+![image](https://user-images.githubusercontent.com/87475288/204604583-cf048753-ae90-4d48-a38a-b979c2ac15db.png)
+
+![image](https://user-images.githubusercontent.com/87475288/204604635-f2c05aa1-44f3-4e4e-8b43-fd7bd115fcb7.png)
+
+![image](https://user-images.githubusercontent.com/87475288/204604646-2772467e-f194-44ae-a2db-a01f252a22c4.png)
+
+![image](https://user-images.githubusercontent.com/87475288/204604658-239043b6-a1b4-4926-b6be-60727e0dc5d8.png)
+
+На графиках прослеживается зависимость успешности обучения от количества эпох, что вполне очевидно. Можно с уверенностью сказать, что количество эпох, в течение которых будет обучаться перцептрон, напрямую зависит от сложности ожидаемой операции. Так, например, на OR у перцептрона уходило 2 или 3 эпохи, на AND от 2 до 5, а с XOR он так и не справился.
+
+## Задание 3
+### Визулазировать работу перцептрона в Unity.
+
+Решил визуализировать так: в случае, если результат логической операции равен нулю, куб отправляется в полёт.
+Создал канвас, на который добавил текст с вводимыми данными. Добавил куб, на который в своб очеред добавил скрипт, контролирующий результат работы перцептрона на этих данных и решающий, что сделать с кубом, в зависимости от полученных данных.
+
+Сам скрипт:
+```C#
+using UnityEngine;
+
+public class Perceptronnoe : MonoBehaviour
+{
+    private Rigidbody _rb;
+    [SerializeField] private int firstValue;
+    [SerializeField] private int secondValue;
+    [SerializeField] private float force;
+    [SerializeField] private Perceptron perceptron;
+    private bool _goesFar;
 
     void Start()
     {
-        StartCoroutine(GoogleSheets());
+        _rb = GetComponent<Rigidbody>();
+        _goesFar = perceptron.CalcOutput(firstValue, secondValue) != 0;
     }
-    
-    IEnumerator GoogleSheets()
+
+    private void FixedUpdate()
     {
-        UnityWebRequest curentResp =
-            UnityWebRequest.Get(
-                "https://sheets.googleapis.com/v4/spreadsheets/1rwDRyBppb0PxRqmkm4YcOo6ly1daXr3dHR3ULpX8HMg/values/Sheet1?key=*API-Ключ*");
-        yield return curentResp.SendWebRequest();
-        string rawResp = curentResp.downloadHandler.text;
-        var rawJson = JSON.Parse(rawResp);
-        foreach (var itemRawJson in rawJson["values"])
+        if (_goesFar)
         {
-            var parseJson = JSON.Parse(itemRawJson.ToString());
-            var selectRow = parseJson[0].AsStringList;
-            dataSet.Add(("Mon_" + selectRow[0]), float.Parse(selectRow[2]));
+            _rb.AddForce(_rb.transform.TransformDirection(Vector3.forward) * force, ForceMode.Impulse);
         }
     }
+}
+
 ```
 
-Добавил функционал для воспроизведения аудио в зависимости от полученных данных:
+Результат работы, после обучения перцептрона операции NOR:
 
-```C#
-    void Update()
-    {
-        if (dataSet["Mon_" + i.ToString()] <= 10 & statusStart == false & i != dataSet.Count)
-        {
-            StartCoroutine(PlaySelectAudioGood());
-            Debug.Log(dataSet["Mon_" + i.ToString()]);
-        }
-
-        if (dataSet["Mon_" + i.ToString()] > 10 & dataSet["Mon_" + i.ToString()] < 100 & statusStart == false &
-            i != dataSet.Count)
-        {
-            StartCoroutine(PlaySelectAudioNormal());
-            Debug.Log(dataSet["Mon_" + i.ToString()]);
-        }
-
-        if (dataSet["Mon_" + i.ToString()] >= 100 & statusStart == false & i != dataSet.Count)
-        {
-            StartCoroutine(PlaySelectAudioBad());
-            Debug.Log(dataSet["Mon_" + i.ToString()]);
-        }
-    }
-    
-    IEnumerator PlaySelectAudioGood()
-    {
-        statusStart = true;
-        selectAudio = GetComponent<AudioSource>();
-        selectAudio.clip = goodSpeak;
-        selectAudio.Play();
-        yield return new WaitForSeconds(3);
-        statusStart = false;
-        i++;
-    }
-
-    IEnumerator PlaySelectAudioNormal()
-    {
-        statusStart = true;
-        selectAudio = GetComponent<AudioSource>();
-        selectAudio.clip = normalSpeak;
-        selectAudio.Play();
-        yield return new WaitForSeconds(3);
-        statusStart = false;
-        i++;
-    }
-
-    IEnumerator PlaySelectAudioBad()
-    {
-        statusStart = true;
-        selectAudio = GetComponent<AudioSource>();
-        selectAudio.clip = badSpeak;
-        selectAudio.Play();
-        yield return new WaitForSeconds(4);
-        statusStart = false;
-        i++;
-    }
-```
-
-## Задание 2: Реализовать запись в Google-таблицу набора данных, полученных с помощью линейной регрессии из лабораторной работы № 1
-
-Создал второй лист, изменил код из задания #1 для корректной записи данных в Google Sheets
-
-```py
-import numpy as np
-import gspread
-
-
-def model(a, b, x):
-    return a * x + b
-
-
-def loss_function(a, b, x, y):
-    num = len(x)
-    prediction = model(a, b, x)
-    return (0.5 / num) * (np.square(prediction - y)).sum()
-
-
-def optimize(a, b, x, y):
-    num = len(x)
-    prediction = model(a, b, x)
-    da = (1.0 / num) * ((prediction - y) * x).sum()
-    db = (1.0 / num) * (prediction - y).sum()
-    a = a - Lr * da
-    b = b - Lr * db
-    return a, b
-
-
-def iterate(a, b, x, y, times):
-    for i in range(times):
-        a, b = optimize(a, b, x, y)
-    return a, b
-
-
-gc = gspread.service_account(filename='unitydatascience-364516-d5142e967d57.json')
-sh = gc.open("UnitySheets")
-x = [3, 21, 22, 34, 54, 34, 55, 67, 89, 99]
-y = [2, 22, 24, 65, 79, 82, 55, 130, 150, 199]
-x, y = np.array(x), np.array(y)
-n_iterations = 1
-initialized = False
-worksheet = sh.get_worksheet(1)
-
-
-for i in range(2, 9):
-    if not initialized:
-        worksheet.update('A1', "Значение a")
-        worksheet.update('B1', "Значение b")
-        worksheet.update('C1', "Количество итераций")
-        worksheet.update('D1', "Потеря (loss)")
-        initialized = True
-
-    a, b = np.random.rand(1), np.random.rand(1)
-    Lr = 0.000_000_01
-
-    a, b = iterate(a, b, x, y, n_iterations)
-    prediction = model(a, b, x)
-    loss = loss_function(a, b, x, y)
-
-    a_value = a[0]
-    b_value = b[0]
-    worksheet.update(f'A{i}', a_value)
-    worksheet.update(f'B{i}', b_value)
-    worksheet.update(f'C{i}', n_iterations)
-    worksheet.update(f'D{i}', loss)
-    print(f"a: {a_value}, b: {b_value}, iterations: {n_iterations}, loss: {loss}")
-    n_iterations *= 10
-
-```
-Результат выполнения скрипта:
-
-![image](https://user-images.githubusercontent.com/87475288/194067976-abddbf3d-3f56-4513-8264-b8c2aad7edef.png)
-
-
-## Задание 3
-### - Самостоятельно разработать сценарий воспроизведения звукового сопровождения в Unity в зависимости от изменения считанных данных в задании 2
-
-Изменил код скрипта так, чтобы он подтягивал данные со второго листа, изменил значения при которых будут воспроизводиться конкретные аудиодорожки:
-```C#
-    void Update()
-    {
-        if (statusStart || i == dataSet.Count + 1) return;
-        if (dataSet["Mon_" + i] >= 1000)
-        {
-            StartCoroutine(PlaySelectAudioBad());
-            Debug.Log(dataSet["Mon_" + i]);
-        }
-        if (dataSet["Mon_" + i] >= 190 && dataSet["Mon_" + i] < 1000)
-        {
-            StartCoroutine(PlaySelectAudioNormal());
-            Debug.Log(dataSet["Mon_" + i]);
-        }
-
-        if (!(dataSet["Mon_" + i] <= 190)) return;
-        
-        StartCoroutine(PlaySelectAudioGood());
-        Debug.Log(dataSet["Mon_" + i]);
-    }
-    
-    IEnumerator GoogleSheets()
-    {
-        var currentResp =
-            UnityWebRequest.Get(
-                "https://sheets.googleapis.com/v4/spreadsheets/1rwDRyBppb0PxRqmkm4YcOo6ly1daXr3dHR3ULpX8HMg/values/Sheet2?key=*API-Ключ*");
-        yield return currentResp.SendWebRequest();
-        var rawResp = currentResp.downloadHandler.text;
-        var rawJson = JSON.Parse(rawResp);
-        foreach (var itemRawJson in rawJson["values"])
-        {
-            var parseJson = JSON.Parse(itemRawJson.ToString());
-            var selectRow = parseJson[0].AsStringList;
-            dataSet.Add(("Mon_" + selectRow[0]), float.Parse(selectRow[4]));
-        }
-    }
-```
-Вывод в консоль:
-
-![image](https://user-images.githubusercontent.com/87475288/194089444-8bbfba4b-1306-4678-be38-6db36ae5bebe.png)
+![NOR_gif](https://user-images.githubusercontent.com/87475288/204607536-ef86d6c1-b680-4c8c-af3d-24a6ad49e71e.gif)
 
 ## Выводы
-Получил навык работы с Google Sheets как с интсрументом для анализа данных, научился заносить и парсить данные с помощью Google Sheets. К тому же меня 5 раз назвали тираном, но только 1 раз доверились мне и 1 раз восхитились.
+
+Перцептрон это один из переходных инструментов в создании нейронных сетей, со своими слабыми местами, которые были исправлены в нейронах. Мне понравилось работать с перцептроном, это очень хорошо помогает разобраться с тем, как работают нейронные сети, и заинтересовывает на изучении данной темы на более углубленном уровне.
 
 ## Powered by
 

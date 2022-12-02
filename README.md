@@ -1,5 +1,5 @@
 # АНАЛИЗ ДАННЫХ И ИСКУССТВЕННЫЙ ИНТЕЛЛЕКТ [in GameDev]
-Отчет по лабораторной работе #2 выполнил(а):
+Отчет по лабораторной работе #5 выполнил(а):
 - Чашкин Никита Андреевич
 - РИ210941
 
@@ -19,256 +19,96 @@
 - ст. преп., Фадеев В.О.
 
 ## Цель работы
-Познакомиться с программными средствами для организции передачи данных между инструментами google, Python и Unity
+Интегрировать экономическую систему в проект Unity и обучить ML-Agent.
 
 ## Задание 1
-### Реализовать совместную работу и передачу данных в связке Python - Google-Sheets – Unity.
+### Изменить параметры файла .yaml-агента и определить какие параметры и как влияют на обучение модели.
 
-Подключил API для работы с Google Sheets:
+Прежде чем менять параметры конфигурации нейронной сети, было бы неплохо обучить её на предоставленных данных, чтобы в будущем сравнить с изменёнными.
 
-![image](https://user-images.githubusercontent.com/87475288/194066762-45a42abe-1534-4dd1-a63a-d9d8f1b14d71.png)
+После загрузки проекта и установки mlagents packages я начал обучение нейронки.
 
-Python код для записи данных из скрипта в Google Sheets:
+![первое обучение](https://user-images.githubusercontent.com/87475288/205329131-d1dd8d4c-328c-4284-8882-19ea445bf229.jpg)
 
-```py
-import gspread
-import numpy as np
+Очевидно, что процесс обучения пойдёт быстрее, если добавить больше префабов, на которых сетка учится. Так чего же мы ждём?
 
-gc = gspread.service_account(filename='unitydatascience-364516-d5142e967d57.json')
-sh = gc.open("UnitySheets")
-price = np.random.randint(2000, 10000, 11)
-for i in range(1, 12):
-    tempInf = str(((price[i - 1] - price[i - 2]) / price[i - 2]) * 100)
-    tempInf = tempInf.replace('.', ',')
-    sh.sheet1.update(f'A{i}', str(i))
-    sh.sheet1.update(f'B{i}', str(price[i - 1]))
-    sh.sheet1.update(f'C{i}', str(tempInf))
-    print(f'{i}\t{tempInf}')
+![первое обучение 12 копий](https://user-images.githubusercontent.com/87475288/205329318-e2433ea4-d234-459a-91d3-5846e051c578.jpg)
 
-```
+Спустя недолгое время обучение было завершено (а точнее прервано мной),
 
-Создал Unity проект и написал скрипт для получения данных из Google Sheets:
+![закончил первое обучение](https://user-images.githubusercontent.com/87475288/205329653-d06fce2f-e9b9-4377-9a05-908a35ef0a9a.jpg)
 
-```C#
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using UnityEngine.Networking;
-using SimpleJSON;
+и на основании полученных данных tensorboard любезно построил следующие графики:
 
-public class NewBehaviourScript : MonoBehaviour
-{
-    public AudioClip goodSpeak;
-    public AudioClip normalSpeak;
-    public AudioClip badSpeak;
-    private AudioSource selectAudio;
-    private Dictionary<string, float> dataSet = new();
-    private bool statusStart = false;
-    private int i = 1;
+![графики первого запуска 1](https://user-images.githubusercontent.com/87475288/205329757-94d90974-1937-4723-9ea2-ed4c095db92b.jpg)
 
-    void Start()
-    {
-        StartCoroutine(GoogleSheets());
-    }
-    
-    IEnumerator GoogleSheets()
-    {
-        UnityWebRequest curentResp =
-            UnityWebRequest.Get(
-                "https://sheets.googleapis.com/v4/spreadsheets/1rwDRyBppb0PxRqmkm4YcOo6ly1daXr3dHR3ULpX8HMg/values/Sheet1?key=*API-Ключ*");
-        yield return curentResp.SendWebRequest();
-        string rawResp = curentResp.downloadHandler.text;
-        var rawJson = JSON.Parse(rawResp);
-        foreach (var itemRawJson in rawJson["values"])
-        {
-            var parseJson = JSON.Parse(itemRawJson.ToString());
-            var selectRow = parseJson[0].AsStringList;
-            dataSet.Add(("Mon_" + selectRow[0]), float.Parse(selectRow[2]));
-        }
-    }
-```
+![графики первого запуска 2](https://user-images.githubusercontent.com/87475288/205329765-6031eb38-2303-459a-8e3a-c8a913668cfe.jpg)
 
-Добавил функционал для воспроизведения аудио в зависимости от полученных данных:
+Нейросеть обучалась, следуя этой конфигурации:
 
-```C#
-    void Update()
-    {
-        if (dataSet["Mon_" + i.ToString()] <= 10 & statusStart == false & i != dataSet.Count)
-        {
-            StartCoroutine(PlaySelectAudioGood());
-            Debug.Log(dataSet["Mon_" + i.ToString()]);
-        }
+![первый конфиг](https://user-images.githubusercontent.com/87475288/205329974-1ead9d64-977f-43f9-8b29-3f88dd3799f6.jpg)
 
-        if (dataSet["Mon_" + i.ToString()] > 10 & dataSet["Mon_" + i.ToString()] < 100 & statusStart == false &
-            i != dataSet.Count)
-        {
-            StartCoroutine(PlaySelectAudioNormal());
-            Debug.Log(dataSet["Mon_" + i.ToString()]);
-        }
+И вот настал момент, когда можно залезть в .yaml файл и намешать там грязи! Однако, не желая всё сломать, а потом чинить несколько часов (хотя что тут вообще можно сломать), я добавил лишь небольшие не особо осознанные корректировки:
 
-        if (dataSet["Mon_" + i.ToString()] >= 100 & statusStart == false & i != dataSet.Count)
-        {
-            StartCoroutine(PlaySelectAudioBad());
-            Debug.Log(dataSet["Mon_" + i.ToString()]);
-        }
-    }
-    
-    IEnumerator PlaySelectAudioGood()
-    {
-        statusStart = true;
-        selectAudio = GetComponent<AudioSource>();
-        selectAudio.clip = goodSpeak;
-        selectAudio.Play();
-        yield return new WaitForSeconds(3);
-        statusStart = false;
-        i++;
-    }
+buffer_size => было 10_240 / стало 15_000
+beta => было 1.0e-2 / стало 5.0e-1
+checkpoint_interval => было 500_000 / стало 50_000
+max_steps => было 750_000 / стало 100_000
+time_horizon => было 64 / стало 128
+summary_freq => было 5000 / стало 0
 
-    IEnumerator PlaySelectAudioNormal()
-    {
-        statusStart = true;
-        selectAudio = GetComponent<AudioSource>();
-        selectAudio.clip = normalSpeak;
-        selectAudio.Play();
-        yield return new WaitForSeconds(3);
-        statusStart = false;
-        i++;
-    }
+За что отвечает каждый из этих параметров? Ответ в задании №2.
 
-    IEnumerator PlaySelectAudioBad()
-    {
-        statusStart = true;
-        selectAudio = GetComponent<AudioSource>();
-        selectAudio.clip = badSpeak;
-        selectAudio.Play();
-        yield return new WaitForSeconds(4);
-        statusStart = false;
-        i++;
-    }
-```
+![второй конфиг](https://user-images.githubusercontent.com/87475288/205330510-8cfe1225-3a0a-419e-8f3f-a60b900ff1a2.jpg)
+ 
+После внесённых изменений я начал обучение вновь, но, как оказалось, всё-таки что-то сломал:
 
-## Задание 2: Реализовать запись в Google-таблицу набора данных, полученных с помощью линейной регрессии из лабораторной работы № 1
+![на ноль делить нельзя](https://user-images.githubusercontent.com/87475288/205331381-7ee833ea-1ba7-4719-9090-a9d49f2050a9.jpg)
 
-Создал второй лист, изменил код из задания #1 для корректной записи данных в Google Sheets
+Изменение параметра summary_freq с 5000 до 0 не понравилось mlagent, в какой-то момент во время обучения он делил на этот параметр, а, как мы знаем, делить на ноль нельзя! Было принято решение вернуть значение этого параметра, как было, и не трогать больше, работает ведь.
 
-```py
-import numpy as np
-import gspread
+Запустил обучение, получил результаты, смотрим:
+
+![графики второго запуска 1](https://user-images.githubusercontent.com/87475288/205332009-5d95b1e8-4e7d-4906-a038-dc395581646d.jpg)
+
+![графики второго запуска 2](https://user-images.githubusercontent.com/87475288/205332023-5aefdf2b-7c91-46b9-b71a-837bdcffdc72.jpg)
+
+А почему так получилось? А это уже задание №2.
 
 
-def model(a, b, x):
-    return a * x + b
+## Задание 2
+### Описать результаты, выведенные в TensorBoard.
 
+Итак, сперва укажем, для чего вообще нужны те параметры, которые были изменены в .yaml файле. О некоторых из них я уже писал в третьей лабораторной работе.
 
-def loss_function(a, b, x, y):
-    num = len(x)
-    prediction = model(a, b, x)
-    return (0.5 / num) * (np.square(prediction - y)).sum()
+#### buffer_size :
+    Количество опыта, которое нужно набрать для обновления политики модели.
+    Было увеличено.
+#### beta :
+    Случайность действия. Повышает разнообразие и иследованность пространства обучения.
+    Было увеличено.
+#### checkpoint_interval :
+    Количество опыта, собираемое между каждым чекпоинтом.
+    Было уменьшено.
+#### max_steps :
+    Количество шагов, которые должны быть выполнены в среде для завершения обучения.
+    Было уменьшено.
+#### time_horizon :
+    Количество циклов ML-агента, необходимых перед добавлением в буфер опыта.
+    Было увеличено.
+#### summary_freq :
+    Количество опыта, необходимого перед созданием и отображением статистики.
+    Осталось без изменений.
 
+На графиках первого обучения видно, как Cumulative Reward (накопительное вознаграждение) стремительно растёт, ведь нейросеть обучается и получает с каждым разом всё большую награду. Episode Length (длительнось эпизода) и Policy Loss (политика реагирования на неудачи) оставались стабильными. Value Loss (потеря значимости обучения) стремительно падает, из чего так же следует, что нейросеть обучается удачно. К тому же можно отметить падение Epsilon (порог расхождений между старой и новой политиками) и повышение Extrinsic Reward (награда окружения).
 
-def optimize(a, b, x, y):
-    num = len(x)
-    prediction = model(a, b, x)
-    da = (1.0 / num) * ((prediction - y) * x).sum()
-    db = (1.0 / num) * (prediction - y).sum()
-    a = a - Lr * da
-    b = b - Lr * db
-    return a, b
+На удивление, второе обучение показало себя лучше. Замечу, что длительность обучения была повышена, а количество шагов удвоено. За счёт увеличения опыта, необходимого для закрепления результата (buffer_size, time_horizon), нейросеть начала показывать стабильно высокий результат уже спустя 10_000 шагов. Относительно первых графиков параметр beta стал сильнее, но всё же некритично, снижаться, хотя энтропия выросла. Epsilon так же стал снижаться сильнее.
 
-
-def iterate(a, b, x, y, times):
-    for i in range(times):
-        a, b = optimize(a, b, x, y)
-    return a, b
-
-
-gc = gspread.service_account(filename='unitydatascience-364516-d5142e967d57.json')
-sh = gc.open("UnitySheets")
-x = [3, 21, 22, 34, 54, 34, 55, 67, 89, 99]
-y = [2, 22, 24, 65, 79, 82, 55, 130, 150, 199]
-x, y = np.array(x), np.array(y)
-n_iterations = 1
-initialized = False
-worksheet = sh.get_worksheet(1)
-
-
-for i in range(2, 9):
-    if not initialized:
-        worksheet.update('A1', "Значение a")
-        worksheet.update('B1', "Значение b")
-        worksheet.update('C1', "Количество итераций")
-        worksheet.update('D1', "Потеря (loss)")
-        initialized = True
-
-    a, b = np.random.rand(1), np.random.rand(1)
-    Lr = 0.000_000_01
-
-    a, b = iterate(a, b, x, y, n_iterations)
-    prediction = model(a, b, x)
-    loss = loss_function(a, b, x, y)
-
-    a_value = a[0]
-    b_value = b[0]
-    worksheet.update(f'A{i}', a_value)
-    worksheet.update(f'B{i}', b_value)
-    worksheet.update(f'C{i}', n_iterations)
-    worksheet.update(f'D{i}', loss)
-    print(f"a: {a_value}, b: {b_value}, iterations: {n_iterations}, loss: {loss}")
-    n_iterations *= 10
-
-```
-Результат выполнения скрипта:
-
-![image](https://user-images.githubusercontent.com/87475288/194067976-abddbf3d-3f56-4513-8264-b8c2aad7edef.png)
-
-
-## Задание 3
-### - Самостоятельно разработать сценарий воспроизведения звукового сопровождения в Unity в зависимости от изменения считанных данных в задании 2
-
-Изменил код скрипта так, чтобы он подтягивал данные со второго листа, изменил значения при которых будут воспроизводиться конкретные аудиодорожки:
-```C#
-    void Update()
-    {
-        if (statusStart || i == dataSet.Count + 1) return;
-        if (dataSet["Mon_" + i] >= 1000)
-        {
-            StartCoroutine(PlaySelectAudioBad());
-            Debug.Log(dataSet["Mon_" + i]);
-        }
-        if (dataSet["Mon_" + i] >= 190 && dataSet["Mon_" + i] < 1000)
-        {
-            StartCoroutine(PlaySelectAudioNormal());
-            Debug.Log(dataSet["Mon_" + i]);
-        }
-
-        if (!(dataSet["Mon_" + i] <= 190)) return;
-        
-        StartCoroutine(PlaySelectAudioGood());
-        Debug.Log(dataSet["Mon_" + i]);
-    }
-    
-    IEnumerator GoogleSheets()
-    {
-        var currentResp =
-            UnityWebRequest.Get(
-                "https://sheets.googleapis.com/v4/spreadsheets/1rwDRyBppb0PxRqmkm4YcOo6ly1daXr3dHR3ULpX8HMg/values/Sheet2?key=*API-Ключ*");
-        yield return currentResp.SendWebRequest();
-        var rawResp = currentResp.downloadHandler.text;
-        var rawJson = JSON.Parse(rawResp);
-        foreach (var itemRawJson in rawJson["values"])
-        {
-            var parseJson = JSON.Parse(itemRawJson.ToString());
-            var selectRow = parseJson[0].AsStringList;
-            dataSet.Add(("Mon_" + selectRow[0]), float.Parse(selectRow[4]));
-        }
-    }
-```
-Вывод в консоль:
-
-![image](https://user-images.githubusercontent.com/87475288/194089444-8bbfba4b-1306-4678-be38-6db36ae5bebe.png)
+Могу сказать, что изменения конфигурации обучения нейросети положительно сказались на итоговом результате.
 
 ## Выводы
-Получил навык работы с Google Sheets как с интсрументом для анализа данных, научился заносить и парсить данные с помощью Google Sheets. К тому же меня 5 раз назвали тираном, но только 1 раз доверились мне и 1 раз восхитились.
+Благодаря этой работе я глубже изучил параметры обучения нейросетей, познакомился с очень полезным инструментом для отображения графиков - TensorBoard.
+Я поражаюсь самому факту существования нейросетей, ведь в их основе заложена обыкновенная (хоть и далеко не простая) математика. С их помощью можно творить невероятные вещи, сложно представить, во что выльется их развитие в ближайшие 10 лет, но не сложно понять, что их влияние на нас будет огромным.
 
 ## Powered by
 
